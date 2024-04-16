@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: apikeydev
+  namespace: dev
+type: Opaque
+data:
+ STRIPE_SECRET_KEY: c2tfdGVzdF81MVAwbUlOQms1NnRxRVp3YzlrSU9tYkREQUNIQVQ4d1g3T1ZlWnd3SVVkWG1rMndDMXdWSU1qY29vSnRYQWFGSjdOd3RaTlg1bllvMFVpQXQ4MmEwT3FvaTAwS2tiWjNuT3M=
+ STRIPE_PUBLISHABLE_KEY: cGtfdGVzdF81MVAwbUlOQms1NnRxRVp3Y3FvMlNCZG9mNGRxZGg2SVdsN1VFODQyT0RtazBNdXFpUXlLdnJpb2NQMjlqc3F1bGRZYXJKbG1iSkpYNUh1YkhrUXdVV3FVRzAwQ1F4TWExUUY=
+
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmapdev
+  namespace: dev
+data:
+  SERVER_ADDRESS: "http://localhost:5005/"
+  EMAIL_HOST: "smtp.gmail.com"
+  EMAIL_PORT: "587"
+  EMAIL_USE_TLS: "True"
+  DEBUG: "True"
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rocketdev-deployment
+  namespace: dev
+  labels:
+    app: rocketdev-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rocketdev-app
+  template:
+    metadata:
+      labels:
+        app: rocketdev-app
+    spec:
+      containers:
+      - name: rocketdev-app
+        imagePullPolicy: IfNotPresent
+        image: rocketslim
+        ports:
+          - containerPort: 5005
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 512m
+          limits:
+            memory: 512Mi
+            cpu: 1024m
+        envFrom:
+        - configMapRef:
+            name: configmapdev
+        - secretRef:
+            name: apikeydev
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rocketdev-deployment
+  namespace: dev
+  labels:
+    app: svc-rocketdev
+spec:
+  type: LoadBalancer
+  selector:
+    app: rocketdev-app
+  ports:
+  - port: 5005
+    protocol: TCP
+    targetPort: 5005
+    
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+spec:
+  rules:
+  - host: ingress.com
+    http:
+      paths:
+      - path: /lol
+        pathType: Prefix
+        backend:
+          service:
+            name: svc-rocketdev
+            port:
+              number: 5009
+      - path: /hs
+        pathType: Prefix
+        backend:
+          service:
+            name: svc-rocketdev
+            port:
+              number: 5005
+
