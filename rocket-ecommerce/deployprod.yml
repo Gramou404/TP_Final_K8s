@@ -1,16 +1,16 @@
-    #------------------------------------------------------- Création du namespace pour l'environnement de Dev
+    #------------------------------------------------------- Création du namespace pour l'environnement de Production
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: dev
+  name: prod
 
 --- #------------------------------------------------------- Création du secret
 
 apiVersion: v1
 kind: Secret
 metadata:
-  name: apikeydev
-  namespace: dev
+  name: apikeyprod
+  namespace: prod
 type: Opaque
 data:
  STRIPE_SECRET_KEY: c2tfdGVzdF81MVAwbUlOQms1NnRxRVp3YzlrSU9tYkREQUNIQVQ4d1g3T1ZlWnd3SVVkWG1rMndDMXdWSU1qY29vSnRYQWFGSjdOd3RaTlg1bllvMFVpQXQ4MmEwT3FvaTAwS2tiWjNuT3M=
@@ -21,8 +21,8 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: configmapdev
-  namespace: dev
+  name: configmapprod
+  namespace: prod
 data:
   SERVER_ADDRESS: "http://localhost:5005/"
   EMAIL_HOST: "smtp.gmail.com"
@@ -35,52 +35,52 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rocketdev-deployment
-  namespace: dev
+  name: rocketprod-deployment
+  namespace: prod
   labels:
-    app: rocketdev-deployment
+    app: rocketprod-deployment
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: rocketdev-app
+      app: rocketprod-app
   template:
     metadata:
       labels:
-        app: rocketdev-app
+        app: rocketprod-app
     spec:
       containers:
-      - name: rocketdev-app
+      - name: rocketprod-app
         imagePullPolicy: IfNotPresent
         image: rocketslim
         ports:
           - containerPort: 5005
         resources:
           requests:
-            memory: 128Mi
-            cpu: 256m
-          limits:
             memory: 256Mi
             cpu: 512m
+          limits:
+            memory: 512Mi
+            cpu: 1024m
         envFrom:
         - configMapRef:
-            name: configmapdev
+            name: configmapprod
         - secretRef:
-            name: apikeydev
+            name: apikeyprod
 
 --- #------------------------------------------------------- Création du loadbalancer
 
 apiVersion: v1
 kind: Service
 metadata:
-  name: rocketdev-deployment
-  namespace: dev
+  name: rocketprod-deployment
+  namespace: prod
   labels:
-    app: svc-rocketdev
+    app: svc-rocketprod
 spec:
   type: LoadBalancer
   selector:
-    app: rocketdev-app
+    app: rocketprod-app
   ports:
   - port: 5005
     protocol: TCP
@@ -92,7 +92,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ingress
-  namespace: dev
+  namespace: prod
 spec:
   rules:
   - host: ingress.com
@@ -102,14 +102,14 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: svc-rocketdev
+            name: svc-rocketprod
             port:
               number: 5005
       - path: /hs
         pathType: Prefix
         backend:
           service:
-            name: svc-rocketdev
+            name: svc-rocketprod
             port:
               number: 5005
 
@@ -118,15 +118,15 @@ spec:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: rocketdev-autoscaler
-  namespace: dev
+  name: rocketprod-autoscaler
+  namespace: prod
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: rocketdev
+    name: rocketprod
   minReplicas: 2
-  maxReplicas: 5
+  maxReplicas: 20
   metrics:
   - type: Resource
     resource:
